@@ -4,6 +4,10 @@ Small-scale training code for LLaMa using open-source inference code ([LLaMa Inf
 ## Requirements
 - `pytorch`
 
+## Setup
+
+## Usage
+
 ## Layout
 
 
