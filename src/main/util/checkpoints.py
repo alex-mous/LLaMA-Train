@@ -1,4 +1,9 @@
+"""
+Load and save checkpoints for model and optimizer
+"""
+
 import os
+
 import torch
 from torch import nn, optim
 

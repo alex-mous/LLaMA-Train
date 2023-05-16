@@ -6,9 +6,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from src.main.util import checkpoints, get_data_loader
-from src.llama import ModelArgs, Transformer, Tokenizer, LLaMA
 from src.main.inference import load
+from src.main.util import get_data_loader
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

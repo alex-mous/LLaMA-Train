@@ -1,20 +1,19 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # This software may be used and distributed according to the terms of the GNU General Public License version 3.
 
-from typing import Optional, Tuple
-from dataclasses import dataclass
 import math
-
-import torch
-from torch import nn
-import torch.nn.functional as F
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
 import fairscale.nn.model_parallel.initialize as fs_init
+import torch
+import torch.nn.functional as F
 from fairscale.nn.model_parallel.layers import (
     ParallelEmbedding,
     RowParallelLinear,
     ColumnParallelLinear,
 )
+from torch import nn
 
 
 @dataclass
