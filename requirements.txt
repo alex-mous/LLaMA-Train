@@ -2,3 +2,7 @@ torch
 fairscale
 fire
 sentencepiece
+torchvision~=0.15.2
+pillow~=9.5.0
+tqdm~=4.65.0
+scikit-learn~=1.2.2
