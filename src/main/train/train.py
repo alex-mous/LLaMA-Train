@@ -6,12 +6,11 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from src.main.inference import load
 from src.main.util import get_data_loader, process_data_to_txt, load_pile
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-base_path: str = os.path.dirname(__file__).rstrip(os.path.normpath("/src/main/train/train.py"))
+base_path: str = os.path.dirname(__file__).removesuffix(os.path.normpath("/src/main/train"))
 
 
 def train(
@@ -47,11 +46,13 @@ def main(*args, **kwargs):
 
 def preprocess_data():
     # Process datasets to text files and train tokenizer
-    artifacts_path = os.path.join(base_path, os.path.join("artifacts"))
-    train, val, test = load_pile()
-    process_data_to_txt(train, os.path.join(artifacts_path, "07.txt"))
-    process_data_to_txt(val, os.path.join(artifacts_path, "val.txt"))
-    process_data_to_txt(test, os.path.join(artifacts_path, "test.txt"))
+    artifacts_path = os.path.join(base_path, os.path.join("data"))
+    train_text_path = os.path.join(artifacts_path, "07.txt")
+    if os.path.exists(train_text_path):
+        print(f"File \"{train_text_path}\" is already loaded.")
+    else:
+        train_data, val_data, test_data = load_pile()
+        process_data_to_txt(train_data, train_text_path)
 
 
 def run_main():
@@ -62,4 +63,4 @@ def run_main():
 
 if __name__ == "__main__":
     preprocess_data()
-    #run_main()
+    # run_main()
