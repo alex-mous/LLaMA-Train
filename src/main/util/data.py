@@ -2,7 +2,9 @@
 Data processing and loading
 """
 
+import numpy as np
 import os
+from tqdm.auto import tqdm
 import json
 from torch.utils.data import DataLoader, IterableDataset
 
@@ -56,12 +58,14 @@ def get_data_loader(batch_size: int = 32):
     return train_loader, val_loader, test_loader
 
 
-def process_data_to_txt(dataset: PileDataset, output_file: str):
+def process_data_to_txt(dataset: PileDataset, output_file: str, p: float = 1e-4):
     """
     Process dataset to text file and save
+    :param p:
     :param dataset:
     :param output_file:
     """
     with open(output_file, "w", encoding="utf-8") as file:
-        for line in dataset:
-            file.write(line)
+        for line in tqdm(dataset):
+            if np.random.rand() < p:
+                file.write(line)

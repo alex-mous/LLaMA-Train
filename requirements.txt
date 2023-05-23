@@ -1,9 +1,10 @@
-torch
-fairscale
-fire
-sentencepiece
+torch~=2.0.1
+fairscale~=0.4.13
+fire~=0.5.0
+sentencepiece~=0.1.99
 torchvision~=0.15.2
 pillow~=9.5.0
 tqdm~=4.65.0
 scikit-learn~=1.2.2
 pandas
+numpy~=1.24.3

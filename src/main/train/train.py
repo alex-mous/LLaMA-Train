@@ -47,12 +47,12 @@ def main(*args, **kwargs):
 def preprocess_data():
     # Process datasets to text files and train tokenizer
     artifacts_path = os.path.join(base_path, os.path.join("data"))
-    train_text_path = os.path.join(artifacts_path, "07.txt")
+    train_text_path = os.path.join(artifacts_path, "07_medium.txt")
     if os.path.exists(train_text_path):
         print(f"File \"{train_text_path}\" is already loaded.")
     else:
         train_data, val_data, test_data = load_pile()
-        process_data_to_txt(train_data, train_text_path)
+        process_data_to_txt(train_data, train_text_path, p=1e-2)
 
 
 def run_main():
