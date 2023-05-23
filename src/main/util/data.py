@@ -37,7 +37,7 @@ def load_pile():
     Load Pile dataset into train, val, and test datasets
     :return: train, test, val PileDatasets
     """
-    train = PileDataset(os.path.join(data_path, "00.jsonl"))
+    train = PileDataset(os.path.join(data_path, "07.jsonl"))
     val = PileDataset(os.path.join(data_path, "val.jsonl"))
     test = PileDataset(os.path.join(data_path, "test.jsonl"))
     return train, val, test
@@ -45,7 +45,7 @@ def load_pile():
 
 def get_data_loader(batch_size: int = 32):
     """
-    Get dataloaders for train, val, and test datasets with given batchsize
+    Get dataloaders for train, val, and test datasets with given batch size
     :param batch_size: Batch size for all dataloaders
     :return:
     """

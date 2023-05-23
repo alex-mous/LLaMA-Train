@@ -10,9 +10,10 @@ from typing import Tuple
 
 import fire
 import torch
+import torch.distributed
 from fairscale.nn.model_parallel.initialize import initialize_model_parallel
 
-from src.llama import ModelArgs, Transformer, Tokenizer, LLaMA
+from src.main.llama import ModelArgs, Transformer, Tokenizer, LLaMA
 
 
 def setup_model_parallel() -> Tuple[int, int]:
@@ -29,12 +30,12 @@ def setup_model_parallel() -> Tuple[int, int]:
 
 
 def load(
-    ckpt_dir: str,
-    tokenizer_path: str,
-    local_rank: int,
-    world_size: int,
-    max_seq_len: int,
-    max_batch_size: int,
+        ckpt_dir: str,
+        tokenizer_path: str,
+        local_rank: int,
+        world_size: int,
+        max_seq_len: int,
+        max_batch_size: int,
 ) -> LLaMA:
     start_time = time.time()
     checkpoints = sorted(Path(ckpt_dir).glob("*.pth"))
@@ -63,12 +64,12 @@ def load(
 
 
 def main(
-    ckpt_dir: str,
-    tokenizer_path: str,
-    temperature: float = 0.8,
-    top_p: float = 0.95,
-    max_seq_len: int = 512,
-    max_batch_size: int = 32,
+        ckpt_dir: str,
+        tokenizer_path: str,
+        temperature: float = 0.8,
+        top_p: float = 0.95,
+        max_seq_len: int = 512,
+        max_batch_size: int = 32,
 ):
     local_rank, world_size = setup_model_parallel()
     if local_rank > 0:
@@ -85,25 +86,25 @@ def main(
         "Building a website can be done in 10 simple steps:\n",
         # Few shot prompts: https://huggingface.co/blog/few-shot-learning-gpt-neo-and-inference-api
         """Tweet: "I hate it when my phone battery dies."
-Sentiment: Negative
-###
-Tweet: "My day has been 👍"
-Sentiment: Positive
-###
-Tweet: "This is the link to the article"
-Sentiment: Neutral
-###
-Tweet: "This new music video was incredibile"
-Sentiment:""",
+        Sentiment: Negative
+        ###
+        Tweet: "My day has been 👍"
+        Sentiment: Positive
+        ###
+        Tweet: "This is the link to the article"
+        Sentiment: Neutral
+        ###
+        Tweet: "This new music video was incredibile"
+        Sentiment:""",
         """Translate English to French:
-
-sea otter => loutre de mer
-
-peppermint => menthe poivrée
-
-plush girafe => girafe peluche
-
-cheese =>""",
+        
+        sea otter => loutre de mer
+        
+        peppermint => menthe poivrée
+        
+        plush girafe => girafe peluche
+        
+        cheese =>""",
     ]
     results = generator.generate(
         prompts, max_gen_len=256, temperature=temperature, top_p=top_p
