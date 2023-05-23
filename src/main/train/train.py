@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from src.main.inference import load
-from src.main.util import get_data_loader
+from src.main.util import get_data_loader, process_data_to_txt, load_pile
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -45,6 +45,15 @@ def main(*args, **kwargs):
     )
 
 
+def preprocess_data():
+    # Process datasets to text files and train tokenizer
+    artifacts_path = os.path.join(base_path, os.path.join("artifacts"))
+    train, val, test = load_pile()
+    process_data_to_txt(train, os.path.join(artifacts_path, "07.txt"))
+    process_data_to_txt(val, os.path.join(artifacts_path, "val.txt"))
+    process_data_to_txt(test, os.path.join(artifacts_path, "test.txt"))
+
+
 def run_main():
     arg_parser = argparse.ArgumentParser()
     args, _ = arg_parser.parse_known_args()  # Only parse known args
@@ -52,4 +61,5 @@ def run_main():
 
 
 if __name__ == "__main__":
-    run_main()
+    preprocess_data()
+    #run_main()

@@ -54,3 +54,14 @@ def get_data_loader(batch_size: int = 32):
     val_loader = DataLoader(val_set, batch_size=batch_size)
     test_loader = DataLoader(test_set, batch_size=batch_size)
     return train_loader, val_loader, test_loader
+
+
+def process_data_to_txt(dataset: PileDataset, output_file: str):
+    """
+    Process dataset to text file and save
+    :param dataset:
+    :param output_file:
+    """
+    with open(output_file, "w", encoding="utf-8") as file:
+        for line in dataset:
+            file.write(line)
