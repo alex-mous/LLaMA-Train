@@ -32,9 +32,9 @@ def main(*args, **kwargs):
     train_loader, val_loader, test_loader = get_data_loader()
 
     # TODO: load model based on checkpoints, params from example code
-    llama_model = load(
-
-    )
+    # llama_model = load(   # probably shouldn't use inference load for train.
+    #
+    # )
 
     print(f"Training model")
     # Train model
