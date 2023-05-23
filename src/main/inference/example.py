@@ -10,6 +10,7 @@ from typing import Tuple
 
 import fire
 import torch
+import torch.distributed
 from fairscale.nn.model_parallel.initialize import initialize_model_parallel
 
 from src.llama import ModelArgs, Transformer, Tokenizer, LLaMA
@@ -29,12 +30,12 @@ def setup_model_parallel() -> Tuple[int, int]:
 
 
 def load(
-    ckpt_dir: str,
-    tokenizer_path: str,
-    local_rank: int,
-    world_size: int,
-    max_seq_len: int,
-    max_batch_size: int,
+        ckpt_dir: str,
+        tokenizer_path: str,
+        local_rank: int,
+        world_size: int,
+        max_seq_len: int,
+        max_batch_size: int,
 ) -> LLaMA:
     start_time = time.time()
     checkpoints = sorted(Path(ckpt_dir).glob("*.pth"))
@@ -63,12 +64,12 @@ def load(
 
 
 def main(
-    ckpt_dir: str,
-    tokenizer_path: str,
-    temperature: float = 0.8,
-    top_p: float = 0.95,
-    max_seq_len: int = 512,
-    max_batch_size: int = 32,
+        ckpt_dir: str,
+        tokenizer_path: str,
+        temperature: float = 0.8,
+        top_p: float = 0.95,
+        max_seq_len: int = 512,
+        max_batch_size: int = 32,
 ):
     local_rank, world_size = setup_model_parallel()
     if local_rank > 0:
@@ -95,7 +96,7 @@ def main(
         ###
         Tweet: "This new music video was incredibile"
         Sentiment:""",
-                """Translate English to French:
+        """Translate English to French:
         
         sea otter => loutre de mer
         
