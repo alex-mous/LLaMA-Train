@@ -5,6 +5,7 @@ import os
 from logging import getLogger
 from typing import List
 
+import sentencepiece as sp
 from sentencepiece import SentencePieceProcessor
 
 logger = getLogger()
