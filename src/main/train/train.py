@@ -47,7 +47,6 @@ def main(*args, **kwargs):
 
 def run_main():
     arg_parser = argparse.ArgumentParser()
-
     args, _ = arg_parser.parse_known_args()  # Only parse known args
     main(**vars(args))
 
