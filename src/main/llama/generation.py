@@ -25,19 +25,20 @@ class LLaMA:
         params = self.model.params
         assert bsz <= params.max_batch_size, (bsz, params.max_batch_size)
 
-        prompt_tokens = [self.tokenizer.encode(x, bos=True, eos=False) for x in prompts]
+        prompt_tokens = [self.tokenizer.encode(x) for x in prompts]  # encode prompts to tokens
 
-        min_prompt_size = min([len(t) for t in prompt_tokens])
+        min_prompt_size = min([len(t) for t in prompt_tokens])  # min token length
         max_prompt_size = max([len(t) for t in prompt_tokens])
 
-        total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
+        total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)  # find maximum possible input len to model
 
-        tokens = torch.full((bsz, total_len), self.tokenizer.pad_id).cuda().long()
+        tokens = torch.full((bsz, total_len), -1).cuda().long()  # batch size x max possible len
         for k, t in enumerate(prompt_tokens):
-            tokens[k, : len(t)] = torch.tensor(t).long()
-        input_text_mask = tokens != self.tokenizer.pad_id
+            tokens[k, : len(t)] = torch.tensor(t).long()  # fill in prompts
+        input_text_mask = tokens != -1  # mask out padding
         start_pos = min_prompt_size
         prev_pos = 0
+        # iterate over first non-generated token in batch to predict next token for all prompts in batch
         for cur_pos in range(start_pos, total_len):
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
             if temperature > 0:
@@ -46,22 +47,19 @@ class LLaMA:
             else:
                 next_token = torch.argmax(logits, dim=-1)
             next_token = next_token.reshape(-1)
-            # only replace token if prompt has already been generated
+
+            # replace only if we don't already have this token in our promt
             next_token = torch.where(
                 input_text_mask[:, cur_pos], tokens[:, cur_pos], next_token
             )
             tokens[:, cur_pos] = next_token
             prev_pos = cur_pos
 
+        # detokenize resulting generations to string
         decoded = []
         for i, t in enumerate(tokens.tolist()):
             # cut to max gen len
             t = t[: len(prompt_tokens[i]) + max_gen_len]
-            # cut to eos tok if any
-            try:
-                t = t[: t.index(self.tokenizer.eos_id)]
-            except ValueError:
-                pass
             decoded.append(self.tokenizer.decode(t))
         return decoded
 
