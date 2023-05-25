@@ -31,7 +31,6 @@ def setup_model_parallel() -> Tuple[int, int]:
 
 def load(
         ckpt_dir: str,
-        tokenizer_path: str,
         local_rank: int,
         world_size: int,
         max_seq_len: int,
@@ -51,7 +50,7 @@ def load(
     model_args: ModelArgs = ModelArgs(
         max_seq_len=max_seq_len, max_batch_size=max_batch_size, **params
     )
-    tokenizer = Tokenizer(model_path=tokenizer_path)
+    tokenizer = Tokenizer("cl100k")
     model_args.vocab_size = tokenizer.n_words
     torch.set_default_tensor_type(torch.cuda.HalfTensor)
     model = Transformer(model_args)

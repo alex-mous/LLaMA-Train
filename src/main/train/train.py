@@ -7,6 +7,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from src.main.util import get_data_loader, process_data_to_txt, load_pile
+from src.main.inference import load
+from src.main.llama import LLaMA
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -14,7 +16,7 @@ base_path: str = os.path.dirname(__file__).removesuffix(os.path.normpath("/src/m
 
 
 def train(
-        model: nn.Module,
+        model: LLaMa,
         train_loader: DataLoader,
         val_loader: DataLoader,
         epochs: int
@@ -31,9 +33,9 @@ def main(*args, **kwargs):
     train_loader, val_loader, test_loader = get_data_loader()
 
     # TODO: load model based on checkpoints, params from example code
-    # llama_model = load(   # probably shouldn't use inference load for train.
-    #
-    # )
+    llama_model = load(   # probably shouldn't use inference load for train.
+
+    )
 
     print(f"Training model")
     # Train model
