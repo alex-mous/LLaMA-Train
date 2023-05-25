@@ -19,6 +19,10 @@ class TestTokenizer(unittest.TestCase):
         self.assertTrue(len(tokenizer.encode("the")) == 1)
         self.assertEqual("hello world", tokenizer.decode(tokenizer.encode("hello world")))
 
+    def test_tokenizer_vocab_size(self):
+        tokenizer = Tokenizer()
+        self.assertEqual(100277, tokenizer.n_words)
+
 
 if __name__ == '__main__':
     unittest.main()
