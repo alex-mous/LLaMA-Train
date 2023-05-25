@@ -20,6 +20,9 @@ class TestTokenizer(unittest.TestCase):
         self.assertEqual("hello world", tokenizer.decode(tokenizer.encode("hello world")))
 
     def test_tokenizer_vocab_size(self):
+        """
+        Check default vocabulary size using cl100k tokenizer.
+        """
         tokenizer = Tokenizer()
         self.assertEqual(100277, tokenizer.n_words)
 
