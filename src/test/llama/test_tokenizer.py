@@ -21,11 +21,10 @@ class TestTokenizer(unittest.TestCase):
         """
         Check basic input tokenization.
         """
-        tokenizer = Tokenizer(tokenizer_path)
-        self.assertTrue(len(tokenizer.encode("in", False, False)) == 1)
-        self.assertTrue(len(tokenizer.encode("in", True, False)) == 2)
-        self.assertTrue(len(tokenizer.encode("in", True, True)) == 3)
-        print(tokenizer.encode("<s>", False, False))
+        tokenizer = Tokenizer()
+        self.assertTrue(len(tokenizer.encode("in")) == 1)
+        self.assertTrue(len(tokenizer.encode("the")) == 1)
+        self.assertEqual("hello world", tokenizer.decode(tokenizer.encode("hello world")))
 
 
 if __name__ == '__main__':
