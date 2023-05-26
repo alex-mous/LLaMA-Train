@@ -5,7 +5,7 @@ from typing import List
 
 import torch
 
-from .model import Transformer
+from .old_model import Transformer
 from .tokenizer import Tokenizer
 
 
