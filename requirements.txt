@@ -9,3 +9,5 @@ scikit-learn~=1.2.2
 pandas
 numpy~=1.24.3
 tiktoken
+transformers[torch]
+evaluate
