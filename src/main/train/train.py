@@ -44,7 +44,7 @@ def load_model(
     model_args: ModelArgs = ModelArgs(
         max_seq_len=max_seq_len, max_batch_size=max_batch_size  # , **params
     )
-    tokenizer = Tokenizer("cl100k")
+    tokenizer = Tokenizer("cl100k_base")
     model_args.vocab_size = tokenizer.n_words
     torch.set_default_tensor_type(torch.HalfTensor)
     model = Transformer(model_args)
@@ -160,5 +160,5 @@ def run_main():
 
 
 if __name__ == "__main__":
-    preprocess_data()
-    # run_main()
+    # preprocess_data()
+    run_main()
