@@ -6,7 +6,9 @@ import numpy as np
 import os
 from tqdm.auto import tqdm
 import json
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader, Dataset
+import torch
+from src.main.llama import Tokenizer
 
 
 data_path: str = os.path.join(
@@ -15,9 +17,9 @@ data_path: str = os.path.join(
 )
 
 
-class PileDataset(IterableDataset):
+class PileDataset(Dataset):
     """
-    Iterable Dataset for Pile
+    Dataset for Pile
     Loads data from a jsonl file line-by-line
     """
     def __init__(self, datafile: str):
@@ -32,6 +34,25 @@ class PileDataset(IterableDataset):
     def __getitem__(self, idx):
         # We do not implement getitem for random access
         return None
+
+
+def process_file(datafile: str, max_seqs: int = 20000, seq_len: int = 2048) -> torch.tensor:
+    """
+    Process JSONL file into up to max_seqs seqs of tokens of length seq_len
+    :param datafile:
+    :param max_seqs:
+    :param seq_len:
+    :return: Tensor of dimension (up to max_seqs, seq_len)
+    """
+    seqs = torch.tensor([])
+    tokenizer = Tokenizer()
+    with open(datafile, "r", encoding="utf-8") as file:
+        for jsonline in file and seqs.shape[0] < max_seqs:
+            line = json.loads(jsonline)
+            tokens = torch.tensor(tokenizer.encode(line))
+            tokens = torch.reshape(tokens[:-len(tokens) % seq_len], (-1, 2048))
+            torch.vstack((seqs, tokens))
+    return seqs
 
 
 def load_pile():
