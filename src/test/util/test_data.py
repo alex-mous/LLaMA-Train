@@ -15,14 +15,11 @@ class TestDataLoading(unittest.TestCase):
         Check loading pile dataset returns some samples with text for train, test, and val
         :return:
         """
-        train, val, test = load_pile()
+        train, val, test = load_pile(10, 10, 10, 16)
         for dataset in [train, val, test]:
-            i = 10  # Check first 10 samples
-            for sample in dataset:
-                self.assertIsInstance(sample, str)
-                if i == 0:
-                    break
-                i -= 1
+            for i in range(10):
+                toks = dataset[i]
+                self.assertEqual(toks.shape[0], 16)
 
     def test_get_data_loader(self):
         """

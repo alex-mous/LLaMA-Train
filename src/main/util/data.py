@@ -20,20 +20,18 @@ data_path: str = os.path.join(
 class PileDataset(Dataset):
     """
     Dataset for Pile
-    Loads data from a jsonl file line-by-line
+    Loaded from an array of sequences, each of same length (seq_len)
     """
-    def __init__(self, datafile: str):
-        self.datafile = datafile
-
-    def __iter__(self):
-        with open(self.datafile, "r", encoding="utf-8") as file:
-            for jsonline in file:
-                line = json.loads(jsonline)
-                yield line["text"]
+    def __init__(self, seqs: torch.tensor):
+        self.seqs = seqs
 
     def __getitem__(self, idx):
-        # We do not implement getitem for random access
-        return None
+        if idx >= self.__len__():
+            return None
+        return self.seqs[idx]
+
+    def __len__(self):
+        return self.seqs.shape[0]
 
 
 def process_file(datafile: str, max_seqs: int = 20000, seq_len: int = 2048) -> torch.tensor:
@@ -44,25 +42,39 @@ def process_file(datafile: str, max_seqs: int = 20000, seq_len: int = 2048) -> t
     :param seq_len:
     :return: Tensor of dimension (up to max_seqs, seq_len)
     """
-    seqs = torch.tensor([])
+    seqs = torch.zeros((1, seq_len))
     tokenizer = Tokenizer()
     with open(datafile, "r", encoding="utf-8") as file:
-        for jsonline in file and seqs.shape[0] < max_seqs:
+        for jsonline in file:
+            print(seqs.shape)
+            if seqs.shape[0]-1 >= max_seqs:
+                break
             line = json.loads(jsonline)
-            tokens = torch.tensor(tokenizer.encode(line))
-            tokens = torch.reshape(tokens[:-len(tokens) % seq_len], (-1, 2048))
+            tokens = torch.tensor(tokenizer.encode(line["text"]))
+            print(tokens)
+            print(len(tokens) % seq_len)
+            print(tokens[:-(len(tokens) % seq_len)])
+            tokens = torch.reshape(tokens[:-(len(tokens) % seq_len)], (-1, seq_len))
             torch.vstack((seqs, tokens))
-    return seqs
+    return seqs[1:]
 
 
-def load_pile():
+def load_pile(train_size: int = 20000, val_size: int = 10000, test_size: int = 0, seq_len: int = 2048):
     """
-    Load Pile dataset into train, val, and test datasets
+    Load Pile dataset into train, val, and test datasets of tokens
+    with numbers of sequences and sequence lengths as specified
+    :param train_size:
+    :param val_size:
+    :param test_size:
+    :param seq_len:
     :return: train, test, val PileDatasets
     """
-    train = PileDataset(os.path.join(data_path, "07.jsonl"))
-    val = PileDataset(os.path.join(data_path, "val.jsonl"))
-    test = PileDataset(os.path.join(data_path, "test.jsonl"))
+    train_toks = process_file(os.path.join(data_path, "07.jsonl"), train_size, seq_len)
+    val_toks = process_file(os.path.join(data_path, "val.jsonl"), val_size, seq_len)
+    test_toks = process_file(os.path.join(data_path, "test.jsonl"), test_size, seq_len)
+    train = PileDataset(train_toks)
+    val = PileDataset(val_toks)
+    test = PileDataset(test_toks)
     return train, val, test
 
 
