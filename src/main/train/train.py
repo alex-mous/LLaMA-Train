@@ -18,6 +18,12 @@ from src.main.util import get_data_loader, process_data_to_txt, load_pile
 from src.main.inference import load
 from src.main.llama import Transformer, Tokenizer, ModelArgs
 
+from datasets import load_dataset
+from transformers import LlamaTokenizerFast
+from torch.optim import AdamW
+from transformers import get_scheduler
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 metric = evaluate.load("accuracy")
 base_path: str = os.path.dirname(__file__).removesuffix(os.path.normpath("/src/main/train"))
@@ -25,132 +31,118 @@ base_path: str = os.path.dirname(__file__).removesuffix(os.path.normpath("/src/m
 
 def load_model(
         ckpt_dir: str,
-        local_rank: int,
-        world_size: int,
         max_seq_len: int,
         max_batch_size: int,
+        vocab_size: int
 ) -> Tuple[Transformer, Tokenizer]:
     start_time = time.time()
-    #checkpoints = sorted(Path(ckpt_dir).glob("*.pth"))
-    #assert world_size == len(
-    #    checkpoints
-    #), f"Loading a checkpoint for MP={len(checkpoints)} but world size is {world_size}"
-    #ckpt_path = checkpoints[local_rank]
-    print("Loading")
-    #checkpoint = torch.load(ckpt_path, map_location="cpu")
+    # checkpoints = sorted(Path(ckpt_dir).glob("*.pth"))
+    # assert world_size == len(
+    #     checkpoints
+    # ), f"Loading a checkpoint for MP={len(checkpoints)} but world size is {world_size}"
+    # ckpt_path = checkpoints[local_rank]
+    print("Loading LLaMa model")
+    # checkpoint = torch.load(ckpt_path, map_location="cpu")
     # with open(Path(ckpt_dir) / "params.json", "r") as f:
     #     params = json.loads(f.read())
 
     model_args: ModelArgs = ModelArgs(
         max_seq_len=max_seq_len, max_batch_size=max_batch_size  # , **params
     )
-    tokenizer = Tokenizer("cl100k_base")
-    model_args.vocab_size = tokenizer.n_words
+    model_args.vocab_size = vocab_size
     torch.set_default_tensor_type(torch.HalfTensor)
     model = Transformer(model_args)
     torch.set_default_tensor_type(torch.FloatTensor)
     # model.load_state_dict(checkpoint, strict=False)
 
-    print(f"Loaded in {time.time() - start_time:.2f} seconds")
-    return model, tokenizer
+    print(f"Loaded model in {time.time() - start_time:.2f} seconds")
+    return model
 
 
 def compute_metrics(eval_prediction):
+    print(eval_prediction)
     predictions = np.argmax(eval_prediction[0], axis=-1)
     return metric.compute(predictions=predictions, references=eval_prediction[1])
 
 
-def train(
-        model: Transformer,
-        tokenizer: Tokenizer,
-        train_loader: DataLoader,
-        val_loader: DataLoader,
-        learning_rate: float,
-        weight_decay: float,
-        epochs: int
-) -> List[float]:
-    # Untested
-    pass
-    model.to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adagrad(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+"""
+# Try using Yelp reviews from HuggingFace example
+dataset = load_dataset("yelp_review_full")
 
-    train_losses = []
-    start_time = time.time()
-    for epoch in range(epochs):
-        epoch_start_time = time.time()
-        model.train()
-        total_loss = 0.0
-        for raw_text in tqdm(train_loader, position=0, leave=True):
-            raw_tokens = tokenizer.encode(raw_text)
-            min_prompt_size = min(len(t) for t in raw_tokens)  # min token length
-            max_prompt_size = max(len(t) for t in raw_tokens)
-            total_len = 25  # generation lengths
-            tokens = torch.full((len(raw_text), total_len), -1).long()  # batch size x max possible len
-            for k, t in enumerate(raw_tokens):
-                tokens[k, : len(t)] = torch.tensor(t).long()  # fill in prompts
-            input_text_mask = tokens != -1  # mask out padding
-            start_pos = min_prompt_size
-            prev_pos = 0
-            # iterate over first non-generated token in batch to predict next token for all prompts in batch
-            for cur_pos in range(start_pos, total_len):
-                logits = model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
-                next_token = torch.argmax(logits, dim=-1).reshape(-1)
+tokenizer = LlamaTokenizerFast.from_pretrained("output/")  # load from pretrained tokenizer weights
+tokenizer.pad_token = -100
 
-                # replace only if we don't already have this token in our promt
-                next_token = torch.where(
-                    input_text_mask[:, cur_pos], tokens[:, cur_pos], next_token
-                )
-                tokens[:, cur_pos] = next_token
-                prev_pos = cur_pos
-            optimizer.zero_grad()
+def tokenize_function(examples):
+    return tokenizer(examples["text"], padding=False, max_length=32, truncation=True)
 
-            # Todo: predict single token at some point for each sample in batch, and compare to true token
-            pred = model(raw_text)
-            loss = criterion(pred, labels)
-            loss.backward()
-            optimizer.step()
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = tokenized_datasets.filter(lambda ex : len(ex["input_ids"]) == 32)
 
-            total_loss += loss.item()
-        train_losses.append(total_loss / len(train_loader))
-        print(f"Epoch {epoch + 1}. "
-              f"Train Loss={round(train_losses[-1], 4)}. "
-              f"Total Time={round((time.time() - epoch_start_time) / 60, 2)}m")
-    print(f"Total training time={round((time.time() - start_time) / 60, 2)}m")
-    return train_losses
+# Convert to data needed for training loop
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
+tokenized_datasets.set_format("torch")
 
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
+"""
 
 
 def main(*args, **kwargs):
-    # TODO: setup data
-    train_set, val_set, test_set = load_pile()
+    seq_len = 64
+    batch_size = 2
+    lr = 5e-7
 
-    # TODO: load model based on checkpoints, params from example code
-    model, tokenizer = load_model(None, -1, -1, 512, 32)
+    tokenizer = Tokenizer("cl100k_base")
+    model = load_model(None, seq_len, batch_size, tokenizer.vocab_size)
 
-    print(f"Training model")
+    model.to(device)
 
+    # Manual training - code based on HuggingFace example
+    small_train_dataset, small_eval_dataset, _ = load_pile(num_train=3000, num_val=100, seq_len=seq_len)
+
+    train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=batch_size)
+    eval_dataloader = DataLoader(small_eval_dataset, batch_size=batch_size)
+
+    optimizer = AdamW(model.parameters(), lr=lr)
+
+    epochs = 3
+    total_train_steps = epochs * len(train_dataloader)
+    lr_scheduler = get_scheduler(
+        name="linear",
+        optimizer=optimizer,
+        num_warmup_steps=0,
+        num_training_steps=total_train_steps
+    )
+
+
+    p_bar = tqdm(range(total_train_steps))
+
+    model.train()
+    for epoch in range(epochs):
+        for batch in train_dataloader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            loss = outputs[0]
+            loss.backward()
+
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+            p_bar.update(1)
+
+    """
     # Train model using HuggingFace Trainer
     training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch")
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=train_set,
-        eval_dataset=val_set,
+        train_dataset=small_train_dataset, #train_set,
+        eval_dataset=small_eval_dataset, #val_set,
         compute_metrics=compute_metrics,
     )
     trainer.train()
-
-
-def preprocess_data():
-    # Process datasets to text files and train tokenizer
-    artifacts_path = os.path.join(base_path, os.path.join("data"))
-    train_text_path = os.path.join(artifacts_path, "07_medium.txt")
-    if os.path.exists(train_text_path):
-        print(f"File \"{train_text_path}\" is already loaded.")
-    else:
-        train_data, val_data, test_data = load_pile()
-        process_data_to_txt(train_data, train_text_path, p=1e-2)
+    """
 
 
 def run_main():
@@ -160,5 +152,4 @@ def run_main():
 
 
 if __name__ == "__main__":
-    # preprocess_data()
     run_main()

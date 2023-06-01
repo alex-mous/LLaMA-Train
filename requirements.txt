@@ -3,7 +3,6 @@ numpy
 transformers
 evaluate
 accelerate
-xformers
 torch
 fire
 sentencepiece
