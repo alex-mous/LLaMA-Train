@@ -27,9 +27,7 @@ class PileDataset(Dataset):
         self.text = text
 
     def __getitem__(self, idx):
-        return {
-            "input_ids": self.text[idx]
-        }
+        return self.text[idx]
 
     def __len__(self):
         return len(self.text)

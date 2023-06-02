@@ -3,38 +3,28 @@ Test data processing and loading
 """
 
 import unittest
-from src.main.util.data import load_pile, get_data_loader
+from src.main.util.data import *
+
+
+data_path: str = os.path.join(
+    os.path.dirname(__file__).removesuffix(os.path.normpath("src/test/util")),
+    os.path.normpath("data/")
+)
 
 
 class TestDataLoading(unittest.TestCase):
     """
     Test data loading from util/data
     """
-    def test_load_pile(self):
-        """
-        Check loading pile dataset returns some samples with text for train, test, and val
-        :return:
-        """
-        train, val, test = load_pile(10, 10, 10, 16)
-        for dataset in [train, val, test]:
-            for i in range(10):
-                toks = dataset[i]
-                self.assertEqual(toks.shape[0], 16)
+    def test_process_file(self):
+        file_path = f"{data_path}/val.jsonl"
+        tokens_list = process_file(file_path=file_path)
+        self.assertEqual(200000, len(tokens_list))
 
-    def test_get_data_loader(self):
-        """
-        Check get_data_loader functions by checking batch size and samples in a batch
-        :return:
-        """
-        train, val, test = get_data_loader(16)
-        for dataloader in [train, val, test]:
-            count = 0  # Check size of batch
-            batch = next(iter(dataloader))
-            for sample in batch:
-                self.assertIsInstance(sample, str)
-                count += 1
-            self.assertEqual(count, 16)
-
+    def test_load_pile_dataset(self):
+        train, val = load_pile_dataset(num_train=10, num_val=10, seq_len=16)
+        self.assertEqual(16, len(train[0]))
+        self.assertEqual(16, len(val[0]))
 
 if __name__ == '__main__':
     unittest.main()
