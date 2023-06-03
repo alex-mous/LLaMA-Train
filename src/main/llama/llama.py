@@ -1,16 +1,18 @@
 import time
 import torch
+from torch import nn
 
 from typing import Tuple, Optional
-from src.main.llama import Transformer, Tokenizer, ModelArgs
+from src.main.llama import Transformer, XFormersTransformer, Tokenizer, ModelArgs
 
 
 def load_llama(
         tokenizer_path: str,
         checkpoint_dir: Optional[str],
         initial_checkpoint: Optional[str],
+        use_xformers: bool = False,
         **model_args
-) -> Tuple[Transformer, Tokenizer]:
+) -> Tuple[nn.Module, Tokenizer]:
     # Load LLaMa model and tokenizer with given parameters
     # TODO: checkpoint loading
     start_time = time.time()
@@ -19,7 +21,10 @@ def load_llama(
     tokenizer = Tokenizer(model_path=tokenizer_path)
     model_params = ModelArgs(**model_args)
     model_params.vocab_size = tokenizer.n_words
-    model = Transformer(model_params)
+    if use_xformers:
+        model = XFormersTransformer(model_params)
+    else:
+        model = Transformer(model_params)
     torch.set_default_tensor_type(torch.FloatTensor)
     print(f"Loaded model and tokenizer in {time.time() - start_time:.2f} seconds")
     return model, tokenizer

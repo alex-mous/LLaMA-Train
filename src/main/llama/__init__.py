@@ -3,5 +3,6 @@
 
 from .generation import LLaMA
 from .model import ModelArgs, Transformer
+from .xformers_model import XFormersTransformer
 from .tokenizer import Tokenizer
 from .llama import load_llama

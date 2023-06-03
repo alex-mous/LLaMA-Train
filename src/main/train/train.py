@@ -9,16 +9,16 @@ from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
 from torch import nn
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from src.main.llama import Transformer, Tokenizer, load_llama
+from src.main.llama import XFormersTransformer, Tokenizer, load_llama
 from src.main.util import get_pile_dataloaders, load_pile_dataset, compute_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def train(
-        model: Transformer,
+        model: XFormersTransformer,
         tokenizer: Tokenizer,
         train_loader: DataLoader,
         val_loader: DataLoader,
@@ -31,7 +31,7 @@ def train(
     model.train()
     loss_fn = CrossEntropyLoss(ignore_index=tokenizer.eos_id)  # ignore padding
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    lr_scheduler = OneCycleLR(optimizer, max_lr=lr, total_steps=epochs*len(train_loader))
+    lr_scheduler = CosineAnnealingLR(optimizer, T_max=epochs*len(train_loader))
 
     for epoch in range(epochs):
         train_loss = 0
@@ -82,7 +82,7 @@ def main():
     assert os.path.isfile(val_path), "Validation data subset in JSONL format required"
     epochs = 20
     batch_size = 64
-    lr = 8.0e-2
+    lr = 5e-3
     weight_decay = 0.1
     max_seq_len = 256
     dim = 256
@@ -94,6 +94,7 @@ def main():
         tokenizer_path,
         None,
         None,
+        use_xformers=True,
         max_seq_len=max_seq_len,
         dim=dim,
         n_layers=n_layers,
