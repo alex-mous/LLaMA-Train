@@ -11,10 +11,15 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+default_data_path: str = os.path.join(
+    os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
+    os.path.normpath("data/")
+)
 
-default_data_path: str = "."
-
-artifacts_path: str = "artifacts/"
+artifacts_path: str = os.path.join(
+    os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
+    os.path.normpath("artifacts/")
+)
 
 
 class PileDataset(Dataset):
