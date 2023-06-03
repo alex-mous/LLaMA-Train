@@ -11,8 +11,8 @@ from torch import nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
-from src.main.llama import Transformer, Tokenizer, load_llama
-from src.main.util import get_pile_dataloaders, load_pile_dataset, compute_loss
+#from src.main.llama import Transformer, Tokenizer, load_llama
+#from src.main.util import get_pile_dataloaders, load_pile_dataset, compute_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -81,13 +81,13 @@ def main():
     assert os.path.isfile(train_path), "Train data subset in JSONL format required"
     assert os.path.isfile(val_path), "Validation data subset in JSONL format required"
     epochs = 20
-    batch_size = 16
+    batch_size = 64
     lr = 8.0e-2
     weight_decay = 0.1
-    max_seq_len = 512
-    dim = 512
-    n_layers = 4
-    n_heads = 4
+    max_seq_len = 256
+    dim = 256
+    n_layers = 2
+    n_heads = 2
 
     torch.cuda.empty_cache()
     model, tokenizer = load_llama(
@@ -100,8 +100,19 @@ def main():
         n_heads=n_heads
     )
 
-    train_set, val_set, _ = load_pile_dataset(tokenizer, train_path, val_path, max_seq_len=max_seq_len)
-    train_dataloader, val_dataloader, _ = get_pile_dataloaders(train_set, val_set, batch_size=batch_size)
+    train_set, val_set, _ = load_pile_dataset(
+        tokenizer,
+        train_path,
+        val_path,
+        num_train=10000,
+        num_val=500,
+        max_seq_len=max_seq_len,
+    )
+    train_dataloader, val_dataloader, _ = get_pile_dataloaders(
+        train_set,
+        val_set,
+        batch_size=batch_size
+    )
 
     try:
         train(

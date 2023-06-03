@@ -2,7 +2,7 @@
 Data processing and loading
 """
 
-from typing import Tuple
+from typing import Tuple, Optional
 import json
 import os
 import time
@@ -11,17 +11,10 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from src.main.llama import Tokenizer
 
-default_data_path: str = os.path.join(
-    os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
-    os.path.normpath("data/")
-)
+default_data_path: str = "."
 
-artifacts_path: str = os.path.join(
-    os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
-    os.path.normpath("artifacts/")
-)
+artifacts_path: str = "artifacts/"
 
 
 class PileDataset(Dataset):
@@ -60,7 +53,7 @@ def process_file(
         data_file: str,
         max_seqs: int = 20000,
         max_seq_len: int = 2048
-) -> torch.tensor:
+) -> torch.Tensor:
     """
     Process JSONL file into up to max_seqs seqs of tokens of length seq_len
     Returns tensor of sequences, each of seq_len with padding of tokenizer eos id
@@ -79,6 +72,10 @@ def process_file(
     # otherwise, parse file.
     print(f"No artifact found. Loading and tokenizing dataset from {data_file}.")
 
+    # create artifacts dir if they don't exist
+    if not os.path.isdir(artifacts_path):
+        os.makedirs(artifacts_path)
+
     seqs = torch.zeros((1, max_seq_len), dtype=torch.long)  # sequences to parse
     pad_id = tokenizer.eos_id  # padding id
 
@@ -95,8 +92,6 @@ def process_file(
 
     # save artifact and return
     torch.save(seqs, artifact_path)
-    if len(seqs) == 1:
-        return None
     return seqs[1:]
 
 
@@ -104,13 +99,13 @@ def load_pile_dataset(
         tokenizer: Tokenizer,
         train_file : str,
         val_file : str,
-        test_file : str = None,
+        test_file : str = "",
         num_train: int = 20000,
         num_val: int = 10000,
         num_test: int = 0,
         max_seq_len: int = 2048,
         data_path: str = default_data_path
-) -> Tuple[PileDataset, PileDataset, PileDataset]:
+) -> Tuple[PileDataset, PileDataset, Optional[PileDataset]]:
     """
     Load Pile dataset into train, val, and test datasets of tokens
     with numbers of sequences and sequence lengths as specified
@@ -131,10 +126,12 @@ def load_pile_dataset(
 
     train_toks = process_file(tokenizer, os.path.join(data_path, train_file), num_train, max_seq_len)
     val_toks = process_file(tokenizer, os.path.join(data_path, val_file), num_val, max_seq_len)
-    test_toks = process_file(tokenizer, os.path.join(data_path, test_file), num_test, max_seq_len)
+    test = None
+    if num_test > 0:
+        test_toks = process_file(tokenizer, os.path.join(data_path, test_file), num_test, max_seq_len)
+        test = PileDataset(test_toks)
     train = PileDataset(train_toks)
     val = PileDataset(val_toks)
-    test = PileDataset(test_toks)
 
     print(f"Loaded dataset in {time.time() - start_time:.2f} seconds")
     return train, val, test

@@ -1,13 +1,8 @@
 scikit-learn
 numpy
-transformers
-evaluate
-accelerate
 torch
 fire
 sentencepiece
 torchvision
 pillow
 tqdm
-pandas
-tiktoken
