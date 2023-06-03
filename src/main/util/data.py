@@ -1,4 +1,4 @@
-"""
+""""
 Data processing and loading
 """
 
@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import torch
 from torch.utils.data import Dataset, DataLoader
+
 
 default_data_path: str = os.path.join(
     os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
@@ -88,7 +89,7 @@ def process_file(
     with open(data_file, "r", encoding="utf-8") as file:
         with tqdm(total=max_seqs, desc="Dataset loading: ") as p_bar:
             for jsonline in file:
-                if seqs.shape[0] > max_seqs:
+                if seqs.shape[0] >= max_seqs:
                     break
                 raw = json.loads(jsonline)
                 tokens = _tokenize_line(raw["text"], tokenizer, max_seq_len, pad_id)
@@ -96,7 +97,7 @@ def process_file(
                 p_bar.update(tokens.shape[0])
 
     # save artifact and return
-    torch.save(seqs, artifact_path)
+    torch.save(seqs[1:], artifact_path)
     return seqs[1:]
 
 
@@ -155,69 +156,3 @@ def get_pile_dataloaders(train_set: PileDataset, val_set: PileDataset, test_set:
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
     return train_loader, val_loader, test_loader
-
-
-"""def process_file(
-        file_path: str,
-        max_samples: int = 200000
-):
-    # check if corresponding artifact exists.
-    artifact_path = f"{os.path.splitext(file_path)[0]}.pt"
-    if os.path.isfile(artifact_path):
-        print(f"Artifact found. Loading dataset from {artifact_path}")
-        return torch.load(artifact_path)
-    # otherwise, parse file.
-    print(f"No artifact found. Loading dataset from {file_path}.")
-    tokenizer = Tokenizer()
-    tokens_list = []
-    with open(file_path, "r", encoding="utf-8") as file:
-        for json_line in file:
-            line = json.loads(json_line)
-            tokens = torch.tensor(tokenizer.encode(line["text"]), dtype=torch.int32)
-            tokens_list.append(tokens)
-            if len(tokens_list) >= max_samples:
-                break
-    # save artifact.
-    torch.save(tokens_list, artifact_path)
-    # return raw inputs.
-    return tokens_list
-"""
-
-"""def convert_file_to_dataset(
-        file_path: str,
-        num_samples: int = None,
-        seq_len: int = 2048,
-):
-    # load tokens from file path.
-    tokens_list = process_file(file_path)
-    if num_samples is not None:
-        tokens_list = tokens_list[:num_samples]
-    # wrap tokens to sequence length chunks.
-    tokens_cat = torch.cat(tokens_list)
-    tokens_cat = tokens_cat[:-(len(tokens_cat) % seq_len)]
-    tokens_cat = tokens_cat.reshape(-1, seq_len)
-    return PileDataset(tokens_cat)
-"""
-
-
-"""def load_pile_dataset(
-        num_train: int = 20000,
-        num_val: int = 10000,
-        seq_len: int = 2048
-):
-    print(f"Loading Pile dataset...")
-    start_time = time.time()
-
-    train_dataset = convert_file_to_dataset(
-        file_path=os.path.join(data_path, "train.jsonl"),
-        num_samples=num_train,
-        seq_len=seq_len
-    )
-    val_dataset = convert_file_to_dataset(
-        file_path=os.path.join(data_path, "val.jsonl"),
-        num_samples=num_val,
-        seq_len=seq_len
-    )
-
-    print(f"Loaded dataset in {time.time() - start_time:.2f} seconds.")
-    return train_dataset, val_dataset"""

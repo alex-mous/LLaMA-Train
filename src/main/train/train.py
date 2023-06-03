@@ -12,7 +12,9 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from src.main.llama import XFormersTransformer, Tokenizer, load_llama
-from src.main.util import get_pile_dataloaders, load_pile_dataset, compute_loss
+from src.main.util import get_pile_dataloaders, load_pile_dataset
+from src.main.util import compute_loss
+from src.main.util import save_checkpoint, load_checkpoint, generate_checkpoint_name
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -25,7 +27,8 @@ def train(
         epochs: int,
         lr: float,
         weight_decay: float,
-        grad_clip=1.0
+        grad_clip: float = 1.0,
+        checkpoints_dir: str = None
 ):
     model.to(device)
     model.train()
@@ -65,11 +68,14 @@ def train(
                 gc.collect()
                 torch.cuda.empty_cache()
 
+        # Print summary
         train_loss /= len(train_loader)
         val_loss /= len(val_loader)
         print(f"Epoch {epoch+1}. Train loss: {train_loss}. Val loss: {val_loss}")
 
-        # TODO: checkpointing
+        # Save checkpoint
+        chkpt_path = generate_checkpoint_name(checkpoints_dir, epoch+1)
+        torch.save(model, chkpt_path)
 
 
 def main():
@@ -77,23 +83,25 @@ def main():
     tokenizer_path = "tokenizer.model"
     train_path = "tiny_train.jsonl"
     val_path = "tiny_val.jsonl"
+    checkpoint_base_path = "checkpoints/"
+    checkpoint_run_name = "run0"
+    load_checkpoint_path = None
     assert os.path.isfile(tokenizer_path), "LLaMa tokenizer pretrained model file required"
     assert os.path.isfile(train_path), "Train data subset in JSONL format required"
     assert os.path.isfile(val_path), "Validation data subset in JSONL format required"
     epochs = 20
-    batch_size = 64
+    batch_size = 16
     lr = 5e-3
-    weight_decay = 0.1
-    max_seq_len = 256
-    dim = 256
-    n_layers = 2
-    n_heads = 2
+    weight_decay = 0.01
+    max_seq_len = 512
+    dim = 512
+    n_layers = 4
+    n_heads = 4
 
     torch.cuda.empty_cache()
     model, tokenizer = load_llama(
-        tokenizer_path,
-        None,
-        None,
+        tokenizer_path=tokenizer_path,
+        initial_checkpoint=load_checkpoint_path,
         use_xformers=True,
         max_seq_len=max_seq_len,
         dim=dim,
@@ -115,6 +123,10 @@ def main():
         batch_size=batch_size
     )
 
+    checkpoints_dir = os.path.join(checkpoint_base_path, checkpoint_run_name)
+    if not os.path.isdir(checkpoints_dir):
+        os.makedirs(checkpoints_dir)
+
     try:
         train(
             model,
@@ -123,7 +135,8 @@ def main():
             val_dataloader,
             lr=lr,
             epochs=epochs,
-            weight_decay=weight_decay
+            weight_decay=weight_decay,
+            checkpoints_dir=checkpoints_dir
         )
     finally:
         # Ensure model is on CPU so it can be garbage collected
