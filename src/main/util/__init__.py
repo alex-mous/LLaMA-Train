@@ -1,2 +1,2 @@
-from src.main.util.data import load_pile, get_data_loader, process_data_to_txt
-from src.main.util.metrics import accuracy
+from src.main.util.data import get_pile_dataloaders, load_pile_dataset
+from src.main.util.metrics import compute_loss, accuracy

@@ -2,89 +2,136 @@
 Data processing and loading
 """
 
-import numpy as np
+from typing import Tuple
+import json
 import os
 import time
-from tqdm.auto import tqdm
-import json
-from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+
 import torch
+from torch.utils.data import Dataset, DataLoader
+
 from src.main.llama import Tokenizer
 
-
-data_path: str = os.path.join(
+default_data_path: str = os.path.join(
     os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
     os.path.normpath("data/")
+)
+
+artifacts_path: str = os.path.join(
+    os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),
+    os.path.normpath("artifacts/")
 )
 
 
 class PileDataset(Dataset):
     """
-    Dataset for Pile
-    Loaded from an array of sequences, each of same length (seq_len)
+    Dataset for loading the Pile dataset.
+    Loaded from an array of sequences, each of equal length.
     """
-    def __init__(self, seqs: torch.tensor):
+    def __init__(self, seqs: torch.Tensor):
         self.seqs = seqs
 
     def __getitem__(self, idx):
         if idx >= self.__len__():
             return None
-        return {
-            "input_ids": self.seqs[idx]
-        }
+        return self.seqs[idx]
 
     def __len__(self):
         return self.seqs.shape[0]
 
 
-def process_file(datafile: str, max_seqs: int = 20000, seq_len: int = 2048) -> torch.tensor:
+def _tokenize_line(line: str, tokenizer: Tokenizer, max_seq_len: int, pad_id: int):
+    # Tokenize a string line into at least one sequence of max_seq_len and return tensor of sequences
+    line_tokens = torch.tensor(tokenizer.encode(line, bos=True, eos=False)).long()
+    if len(line_tokens) > max_seq_len:  # split into multiple sequences
+        line_tokens = line_tokens[:max_seq_len * (len(line_tokens) // max_seq_len)]  # trim to multiple
+        line_tokens = line_tokens.view(max_seq_len, -1).t()  # reshape into (num_seq, max_seq_len)
+    else:
+        line_tokens = line_tokens.reshape(1, -1)  # reshape into (1, seq len)
+    tokens = torch.full((line_tokens.shape[0], max_seq_len), pad_id).long()
+    for i, t in enumerate(line_tokens):
+        tokens[i, : min(max_seq_len, len(t))] = t
+    return tokens
+
+
+def process_file(
+        tokenizer: Tokenizer,
+        data_file: str,
+        max_seqs: int = 20000,
+        max_seq_len: int = 2048
+) -> torch.tensor:
     """
     Process JSONL file into up to max_seqs seqs of tokens of length seq_len
-    Returns tensor of sequences, each of seq_len with no padding
-    :param datafile:
+    Returns tensor of sequences, each of seq_len with padding of tokenizer eos id
+    :param tokenizer:
+    :param data_file:
     :param max_seqs:
-    :param seq_len:
+    :param max_seq_len:
     :return: Tensor of dimension (up to max_seqs, seq_len)
     """
-    if max_seqs == 0:
-        return None
 
-    seqs = torch.zeros((1, seq_len), dtype=torch.int32)
+    # check if corresponding artifact exists.
+    artifact_path = os.path.join(artifacts_path, f"{os.path.splitext(data_file)[0]}.pt")
+    if os.path.isfile(artifact_path):
+        print(f"Artifact tokens found. Loading tokenized dataset from {artifact_path}")
+        return torch.load(artifact_path)
+    # otherwise, parse file.
+    print(f"No artifact found. Loading and tokenizing dataset from {data_file}.")
 
-    tokenizer = Tokenizer()
-    with open(datafile, "r", encoding="utf-8") as file:
-        with tqdm(total=max_seqs) as p_bar:
-            curr_tokens = torch.tensor([], dtype=torch.int32)
+    seqs = torch.zeros((1, max_seq_len), dtype=torch.long)  # sequences to parse
+    pad_id = tokenizer.eos_id  # padding id
+
+    # process data file into tokenized sequences padded to exactly max_seq_len
+    with open(data_file, "r", encoding="utf-8") as file:
+        with tqdm(total=max_seqs, desc="Dataset loading: ") as p_bar:
             for jsonline in file:
                 if seqs.shape[0] > max_seqs:
                     break
-                line = json.loads(jsonline)
-                new_tokens = torch.tensor(tokenizer.encode(line["text"]), dtype=torch.int32)
-                curr_tokens = torch.cat((curr_tokens, new_tokens))
-                if len(curr_tokens) > seq_len:
-                    tokens = torch.reshape(curr_tokens[:-(len(curr_tokens) % seq_len)], (-1, seq_len))
-                    curr_tokens = curr_tokens[tokens.shape[0]*seq_len : ]
-                    seqs = torch.vstack((seqs, tokens))
-                    p_bar.update(tokens.shape[0])
+                raw = json.loads(jsonline)
+                tokens = _tokenize_line(raw["text"], tokenizer, max_seq_len, pad_id)
+                seqs = torch.vstack((seqs, tokens))
+                p_bar.update(tokens.shape[0])
+
+    # save artifact and return
+    torch.save(seqs, artifact_path)
+    if len(seqs) == 1:
+        return None
     return seqs[1:]
 
 
-def load_pile(num_train: int = 20000, num_val: int = 10000, num_test: int = 0, seq_len: int = 2048):
+def load_pile_dataset(
+        tokenizer: Tokenizer,
+        train_file : str,
+        val_file : str,
+        test_file : str = None,
+        num_train: int = 20000,
+        num_val: int = 10000,
+        num_test: int = 0,
+        max_seq_len: int = 2048,
+        data_path: str = default_data_path
+) -> Tuple[PileDataset, PileDataset, PileDataset]:
     """
     Load Pile dataset into train, val, and test datasets of tokens
     with numbers of sequences and sequence lengths as specified
+    :param max_seq_len:
+    :param data_path:
+    :param test_file:
+    :param val_file:
+    :param train_file:
+    :param tokenizer:
     :param num_train:
     :param num_val:
     :param num_test:
-    :param seq_len:
-    :return: train, test, val PileDatasets
+    :param max_seq_len:
+    :return: train, val, (optionally) test PileDatasets
     """
     print("Loading Pile dataset...")
     start_time = time.time()
 
-    train_toks = process_file(os.path.join(data_path, "train.jsonl"), num_train, seq_len)
-    val_toks = process_file(os.path.join(data_path, "val.jsonl"), num_val, seq_len)
-    test_toks = process_file(os.path.join(data_path, "test.jsonl"), num_test, seq_len)
+    train_toks = process_file(tokenizer, os.path.join(data_path, train_file), num_train, max_seq_len)
+    val_toks = process_file(tokenizer, os.path.join(data_path, val_file), num_val, max_seq_len)
+    test_toks = process_file(tokenizer, os.path.join(data_path, test_file), num_test, max_seq_len)
     train = PileDataset(train_toks)
     val = PileDataset(val_toks)
     test = PileDataset(test_toks)
@@ -93,27 +140,82 @@ def load_pile(num_train: int = 20000, num_val: int = 10000, num_test: int = 0, s
     return train, val, test
 
 
-def get_data_loader(batch_size: int = 32):
+def get_pile_dataloaders(train_set: PileDataset, val_set: PileDataset, test_set: PileDataset = None, batch_size: int = 32):
     """
     Get dataloaders for train, val, and test datasets with given batch size
-    :param batch_size: Batch size for all dataloaders
+    :param train_set:
+    :param val_set:
+    :param test_set:
+    :param batch_size:
     :return:
     """
-    train_set, val_set, test_set = load_pile()
-    train_loader = DataLoader(train_set, batch_size=batch_size)
-    val_loader = DataLoader(val_set, batch_size=batch_size)
-    test_loader = DataLoader(test_set, batch_size=batch_size)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
     return train_loader, val_loader, test_loader
 
 
-def process_data_to_txt(dataset: PileDataset, output_file: str, p: float = 1e-4):
-    """
-    Process dataset to text file and save
-    :param p:
-    :param dataset:
-    :param output_file:
-    """
-    with open(output_file, "w", encoding="utf-8") as file:
-        for line in tqdm(dataset):
-            if np.random.rand() < p:
-                file.write(line)
+"""def process_file(
+        file_path: str,
+        max_samples: int = 200000
+):
+    # check if corresponding artifact exists.
+    artifact_path = f"{os.path.splitext(file_path)[0]}.pt"
+    if os.path.isfile(artifact_path):
+        print(f"Artifact found. Loading dataset from {artifact_path}")
+        return torch.load(artifact_path)
+    # otherwise, parse file.
+    print(f"No artifact found. Loading dataset from {file_path}.")
+    tokenizer = Tokenizer()
+    tokens_list = []
+    with open(file_path, "r", encoding="utf-8") as file:
+        for json_line in file:
+            line = json.loads(json_line)
+            tokens = torch.tensor(tokenizer.encode(line["text"]), dtype=torch.int32)
+            tokens_list.append(tokens)
+            if len(tokens_list) >= max_samples:
+                break
+    # save artifact.
+    torch.save(tokens_list, artifact_path)
+    # return raw inputs.
+    return tokens_list
+"""
+
+"""def convert_file_to_dataset(
+        file_path: str,
+        num_samples: int = None,
+        seq_len: int = 2048,
+):
+    # load tokens from file path.
+    tokens_list = process_file(file_path)
+    if num_samples is not None:
+        tokens_list = tokens_list[:num_samples]
+    # wrap tokens to sequence length chunks.
+    tokens_cat = torch.cat(tokens_list)
+    tokens_cat = tokens_cat[:-(len(tokens_cat) % seq_len)]
+    tokens_cat = tokens_cat.reshape(-1, seq_len)
+    return PileDataset(tokens_cat)
+"""
+
+
+"""def load_pile_dataset(
+        num_train: int = 20000,
+        num_val: int = 10000,
+        seq_len: int = 2048
+):
+    print(f"Loading Pile dataset...")
+    start_time = time.time()
+
+    train_dataset = convert_file_to_dataset(
+        file_path=os.path.join(data_path, "train.jsonl"),
+        num_samples=num_train,
+        seq_len=seq_len
+    )
+    val_dataset = convert_file_to_dataset(
+        file_path=os.path.join(data_path, "val.jsonl"),
+        num_samples=num_val,
+        seq_len=seq_len
+    )
+
+    print(f"Loaded dataset in {time.time() - start_time:.2f} seconds.")
+    return train_dataset, val_dataset"""

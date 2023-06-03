@@ -1,15 +1,35 @@
-from typing import List
+"""
+SentencePieceProcessor-based Tokenizer, based off of original LLaMa tokenizer
+"""
 
-import tiktoken
+from sentencepiece import SentencePieceProcessor
+from typing import List
 
 
 class Tokenizer:
-    def __init__(self, model: str = "cl100k_base"):
-        self.tokenizer = tiktoken.get_encoding(model)
-        self.vocab_size = self.tokenizer.n_vocab
+    def __init__(self, model_path: str):
+        """
+        Load tokenizer from model
+        :param model_path:
+        """
+        # Load tokenizer from tokenizer model
+        self.sp_model = SentencePieceProcessor(model_file=model_path)
 
-    def encode(self, s: str) -> List[int]:
-        return self.tokenizer.encode(s)
+        # Copy special tokens from model
+        self.n_words: int = self.sp_model.vocab_size()
+        self.bos_id: int = self.sp_model.bos_id()
+        self.eos_id: int = self.sp_model.eos_id()
+        self.pad_id: int = self.sp_model.pad_id()
+        assert self.sp_model.vocab_size() == self.sp_model.get_piece_size()
+
+    def encode(self, s: str, bos: bool, eos: bool) -> List[int]:
+        assert type(s) is str
+        t = self.sp_model.encode(s)
+        if bos:
+            t = [self.bos_id] + t
+        if eos:
+            t = t + [self.eos_id]
+        return t
 
     def decode(self, t: List[int]) -> str:
-        return self.tokenizer.decode(t)
+        return self.sp_model.decode(t)
