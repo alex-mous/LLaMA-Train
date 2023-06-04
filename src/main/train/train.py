@@ -1,6 +1,4 @@
-from typing import Tuple, Optional
 import torch
-import time
 import gc
 import os
 from tqdm import tqdm
@@ -11,16 +9,16 @@ from torch import nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from src.main.llama import XFormersTransformer, Tokenizer, load_llama
+from src.main.llama import Tokenizer, load_llama
 from src.main.util import get_pile_dataloaders, load_pile_dataset
 from src.main.util import compute_loss
-from src.main.util import save_checkpoint, load_checkpoint, generate_checkpoint_name
+from src.main.util import generate_checkpoint_name
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def train(
-        model: XFormersTransformer,
+        model: nn.Module,
         tokenizer: Tokenizer,
         train_loader: DataLoader,
         val_loader: DataLoader,
@@ -139,7 +137,7 @@ def main():
             checkpoints_dir=checkpoints_dir
         )
     finally:
-        # Ensure model is on CPU so it can be garbage collected
+        # Ensure model is on CPU, so it can be garbage collected
         model.cpu()
 
 
