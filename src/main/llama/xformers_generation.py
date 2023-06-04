@@ -9,36 +9,38 @@ from .xformers_model import XFormersTransformer
 from .tokenizer import Tokenizer
 
 
-class LLaMA:
-    def __init__(self, model: XFormersTransformer, tokenizer: Tokenizer, max_gen_len: int = 512):
-        self.model = model
+class XFormersLLaMa:
+    def __init__(
+            self,
+            model: XFormersTransformer,
+            tokenizer: Tokenizer,
+            device: torch.device = None
+    ):
+        self.device = device
+        self.model = model.to(self.device)
         self.tokenizer = tokenizer
-        self.max_gen_len = max_gen_len
 
     def generate(
-        self,
-        prompts: List[str],
-        max_gen_len: int,
-        temperature: float = 0.8,
-        top_p: float = 0.95,
+            self,
+            prompts: List[str],
+            max_gen_len: int = 512,
+            temperature: float = 0.8,
+            top_p: float = 0.95
     ) -> List[str]:
-        batch_size = len(prompts)
-        max_len = self.max_gen_len
-
         prompt_tokens = [self.tokenizer.encode(x, bos=True, eos=False) for x in prompts]
         min_prompt_size = min([len(t) for t in prompt_tokens])
         max_prompt_size = max([len(t) for t in prompt_tokens])
         assert max_prompt_size < max_gen_len
 
-        tokens = torch.full((batch_size, max_len), -1).cuda().long()
+        tokens = torch.full((len(prompts), max_gen_len), self.tokenizer.eos_id).cuda().long()
         for k, t in enumerate(prompt_tokens):
             tokens[k, :len(t)] = torch.tensor(t).long()
-        input_text_mask = (tokens != -1)
+        input_text_mask = (tokens != self.tokenizer.eos_id)
 
         start_pos = min_prompt_size
         self.model.eval()
-        for cur_pos in range(start_pos, max_len):
-            logits = self.model(tokens)
+        for cur_pos in range(start_pos, 100):
+            logits = self.model(tokens)[:, cur_pos, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
                 next_token = sample_top_p(probs, top_p)
@@ -53,7 +55,6 @@ class LLaMA:
 
         decoded = []
         for i, t in enumerate(tokens.tolist()):
-            t = t[:, len(prompt_tokens[i]) + max_len]
             decoded.append(self.tokenizer.decode(t))
         return decoded
 
