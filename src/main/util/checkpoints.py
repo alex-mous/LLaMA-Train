@@ -13,4 +13,7 @@ def generate_checkpoint_name(checkpoints_base_path: str, epoch: int, new_type: b
     :param model: PyTorch model
     :return: Checkpoint path and name
     """
-    return os.path.join(checkpoints_base_path, f"chkpt-{epoch}" + ("-light" if new_type else "") + ".pt")
+    return os.path.join(
+        checkpoints_base_path,
+        f"chkpt-{epoch}" + ("-light" if new_type else "") + ".pt"
+    )

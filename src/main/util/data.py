@@ -6,8 +6,8 @@ from typing import Tuple, Optional
 import json
 import os
 import time
-from tqdm import tqdm
 import math
+from tqdm.auto import tqdm
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -44,8 +44,9 @@ class PileDataset(Dataset):
 
 
 def _tokenize_line(line: str, tokenizer: Tokenizer, max_seq_len: int, pad_id: int):
-    # Tokenize a string line into at least one sequence of max_seq_len and return tensor of sequences
-    line_tokens = torch.tensor(tokenizer.encode(line, bos=True, eos=False)).long()
+    # Tokenize a string line into at least one sequence of max_seq_len
+    # Return tensor of sequences
+    line_tokens = torch.Tensor(tokenizer.encode(line, bos=True, eos=False)).long()
     tokens = torch.full((math.ceil(len(line_tokens)/max_seq_len)*max_seq_len, ), pad_id, dtype=torch.long)
     tokens[:len(line_tokens)] = line_tokens
     tokens = tokens.view(max_seq_len, -1).t()
@@ -104,9 +105,9 @@ def process_file(
 
 def load_pile_dataset(
         tokenizer: Tokenizer,
-        train_file : str,
-        val_file : str,
-        test_file : str = "",
+        train_file: str,
+        val_file: str,
+        test_file: str = "",
         num_train: int = 20000,
         num_val: int = 10000,
         num_test: int = 0,
@@ -120,11 +121,26 @@ def load_pile_dataset(
     print("Loading Pile dataset...")
     start_time = time.time()
 
-    train_toks = process_file(tokenizer, os.path.join(data_path, train_file), num_train, max_seq_len)
-    val_toks = process_file(tokenizer, os.path.join(data_path, val_file), num_val, max_seq_len)
+    train_toks = process_file(
+        tokenizer,
+        os.path.join(data_path, train_file),
+        num_train,
+        max_seq_len
+    )
+    val_toks = process_file(
+        tokenizer,
+        os.path.join(data_path, val_file),
+        num_val,
+        max_seq_len
+    )
     test = None
     if num_test > 0:
-        test_toks = process_file(tokenizer, os.path.join(data_path, test_file), num_test, max_seq_len)
+        test_toks = process_file(
+            tokenizer,
+            os.path.join(data_path, test_file),
+            num_test,
+            max_seq_len
+        )
         test = PileDataset(test_toks)
     train = PileDataset(train_toks)
     val = PileDataset(val_toks)
@@ -133,7 +149,12 @@ def load_pile_dataset(
     return train, val, test
 
 
-def get_pile_dataloaders(train_set: PileDataset, val_set: PileDataset, test_set: PileDataset = None, batch_size: int = 32):
+def get_pile_dataloaders(
+    train_set: PileDataset,
+    val_set: PileDataset,
+    test_set: PileDataset = None,
+    batch_size: int = 32
+):
     """
     Get dataloaders for train, val, and test datasets with given batch size
     :param train_set:

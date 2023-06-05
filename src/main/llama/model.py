@@ -1,6 +1,10 @@
 """
 Reduced scale single GPU LLaMa model with XFormers efficient attention and rotary embedding
 Based off of original LLaMa model
+
+This code is based off of code from Meta Platforms, Inc., and unmodified portions are attributed to the following declaration:
+Copyright (c) Meta Platforms, Inc. and affiliates.
+This software may be used and distributed according to the terms of the GNU General Public License version 3.
 """
 
 from dataclasses import dataclass

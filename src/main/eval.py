@@ -12,8 +12,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 root_dir: str = os.path.dirname(__file__).removesuffix(os.path.normpath("src/main"))
 
 
-def main(*args, **kwargs):
-    # Output path that holds checkpoints folder 
+def main():
+    """
+    Train a model with the following parameters
+    """
+    # Output path that holds checkpoints folder
     output_path = os.path.join(root_dir, os.path.normpath("output/"))
 
     # Data path that stores tokenizer.model

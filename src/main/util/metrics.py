@@ -10,7 +10,12 @@ from torch.utils.data import DataLoader
 from src.main.llama import XFormersTransformer
 
 
-def evaluate(device: torch.device, model: XFormersTransformer, eval_dataloader: DataLoader, loss_fn: nn.CrossEntropyLoss) -> float:
+def evaluate(
+        device: torch.device,
+        model: XFormersTransformer,
+        eval_dataloader: DataLoader,
+        loss_fn: nn.CrossEntropyLoss
+) -> float:
     """
     Compute loss on eval dataloader
     """
@@ -48,7 +53,7 @@ def get_number_of_parameters(model: nn.Module):
     Get number of parameters in network
     """
     total_params = 0
-    for name, parameter in model.named_parameters():
+    for _, parameter in model.named_parameters():
         if parameter.requires_grad:
             total_params += parameter.numel()
     return total_params

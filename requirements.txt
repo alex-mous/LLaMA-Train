@@ -4,3 +4,4 @@ torch
 sentencepiece
 torchvision
 tqdm
+typing-extensions
