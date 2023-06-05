@@ -2,6 +2,7 @@
 Compute metrics based on a model and dataset loader
 """
 
+import gc
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -9,7 +10,7 @@ from torch.utils.data import DataLoader
 from src.main.llama import XFormersTransformer
 
 
-def evaluate(model: XFormersTransformer, eval_dataloader: DataLoader, loss_fn: nn.CrossEntropyLoss) -> float:
+def evaluate(device: torch.device, model: XFormersTransformer, eval_dataloader: DataLoader, loss_fn: nn.CrossEntropyLoss) -> float:
     """
     Compute loss on eval dataloader
     """

@@ -1,9 +1,10 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # This software may be used and distributed according to the terms of the GNU General Public License version 3.
 
-from typing import List
+from typing import List, Optional, Tuple
 
 import torch
+from torch.utils.data import DataLoader
 
 from .model import XFormersTransformer
 from .tokenizer import Tokenizer
@@ -39,7 +40,7 @@ class XFormersLLaMa:
 
         start_pos = min_prompt_size
         self.model.eval()
-        for cur_pos in range(start_pos, 100):
+        for cur_pos in range(start_pos, max_gen_len):
             logits = self.model(tokens)[:, cur_pos, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)

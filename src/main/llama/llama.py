@@ -49,17 +49,21 @@ def load_llama_and_data(
     """
     Load a model and train and val dataloaders for training, evaluation, or generation
     """
-    assert os.path.isfile(storage_base_path + tokenizer_path), "LLaMa tokenizer pretrained model file required"
-    assert os.path.isfile(storage_base_path + train_path), "Train data subset in JSONL format required"
-    assert os.path.isfile(storage_base_path + val_path), "Validation data subset in JSONL format required"
+    tokenizer_full_path = os.path.join(storage_base_path, os.path.normpath(tokenizer_path))
+    train_full_path = os.path.join(storage_base_path, os.path.normpath(train_path))
+    val_full_path = os.path.join(storage_base_path, os.path.normpath(val_path))
+    assert os.path.isfile(tokenizer_full_path), f"LLaMa tokenizer pretrained model file required. {tokenizer_full_path} not valid."
+    assert os.path.isfile(train_full_path), f"Train data subset in JSONL format required. {train_full_path} not valid."
+    assert os.path.isfile(val_full_path), f"Validation data subset in JSONL format required. {val_full_path} not valid."
+    if initial_chkpt is not None:
+        assert os.path.isfile(initial_chkpt), f"Initial checkpoint path {initial_chkpt} is not valid."
 
     # Load model
     torch.cuda.empty_cache()
     model, tokenizer = load_llama(
-        tokenizer_path=storage_base_path + tokenizer_path,
+        tokenizer_path=tokenizer_full_path,
         initial_chkpt=initial_chkpt,
-        use_xformers=True,
-        new_chkpt=new_chkpt_format,
+        new_chkpt_type=new_chkpt_format,
         max_seq_len=max_seq_len,
         **model_args
     )
@@ -67,8 +71,8 @@ def load_llama_and_data(
     # Load data
     train_set, val_set, _ = load_pile_dataset(
         tokenizer,
-        storage_base_path + train_path,
-        storage_base_path + val_path,
+        train_full_path,
+        val_full_path,
         num_train=num_train,
         num_val=num_val,
         max_seq_len=max_seq_len,

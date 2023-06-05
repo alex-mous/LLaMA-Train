@@ -12,6 +12,8 @@ import math
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+from src.main.llama import Tokenizer
+
 
 default_data_path: str = os.path.join(
     os.path.dirname(__file__).removesuffix(os.path.normpath("src/main/util")),

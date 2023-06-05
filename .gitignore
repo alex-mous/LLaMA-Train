@@ -1,3 +1,6 @@
 __pycache__/
 data/
 output/
+artifacts/
+.idea/
+.vscode/
