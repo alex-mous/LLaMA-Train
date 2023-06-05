@@ -8,13 +8,10 @@ Small-scale training code for LLaMa using open-source inference code ([LLaMa Inf
 
 ## Requirements
 - `torch`
-- `fairscale`
-- `fire`
 - `sentencepiece`
 - `torchvision`
-- `pillow`
 - `tqdm`
-- `scikit-learn`
+- `xformers`
 
 ## Setup
 First, install the requirements with `pip install -r requirements.txt`.
