@@ -2,9 +2,8 @@
 Small-scale training code for LLaMa using open-source inference code ([LLaMa Inference](https://github.com/facebookresearch/llama)), using the open-source Pile dataset ([Pile data](https://the-eye.eu/public/AI/pile/)).
 
 ## Goals
-1. Implement training for LLaMa using the Pile dataset
-2. Scale the 7B LLaMa model to feasibly train models on a subset of Pile with low compute
-3. Perform an ablation study by modifying the ratio of dimension to number of heads on the aforementioned scaled model
+1. Implement basic training code for LLaMA on a small scale
+2. Use a small subset of the Pile dataset to train small LLaMA models to perform ablation studies on different model types
 
 ## Requirements
 - `torch`
@@ -12,6 +11,9 @@ Small-scale training code for LLaMa using open-source inference code ([LLaMa Inf
 - `torchvision`
 - `tqdm`
 - `xformers`
+- A copy of the tokenizer model from Meta to tokenize data (see below)
+- A small subset of a Pile train subset (see below)
+- Pile validaton set (see below)
 
 ## Setup
 *Note: the following instructions are for using LLaMA-Train on a computer with a GPU. To use the Google Colab notebook supplied under `notebooks`, which provides the same functionality, see the acompanying document.*
@@ -25,37 +27,13 @@ Next, we will also need a copy of the tokenizer model from Meta to tokenize data
 Finally, setup the local structure by adding the root directory of the project to your Python path. For example, the following command does this on Bash: `export PYTHONPATH="$PWD"`
 
 ## Usage
-### Training
+For training and evaluation, run `train.py` and `eval.py`, respectively. The parameters for training and evaluation can be configured in the main method of each file. For generation, run `inference.py` and pass the needed parameters as command-line arguments.
 
-
-### Evaluation
-
-### Generation
-
-
-## Code Base
-
-### Layout
-- `llama` contains the model, tokenizer and model output generation code from [LLaMa Inference](https://github.com/facebookresearch/llama), modified to fit the goals of this project.
-- `main/inference` contains code to evaluate the models on `val` and `test`
-- `main/train` contains code to train the models on the input train set
-- `main/util` contains utility methods defined to simplify training and evaluation
-
-### Modifications to Existing LLaMa Code
-- Replace attention modules with PyTorch equivalents
-- Scale 7B model to reduce compute required for training
-  - Reduce number of layers to `n`
-  - Reduce training batch size to `B`
-- Parameterize model based on dimension and number of heads to perform ablation
-
-### Data Processing Implementation
-See accompanying document.
-
-### Training Implementation
-See accompanying document.
-
-## Results
-See accompanying document.
+## Layout
+- `main/llama` contains the model, tokenizer and model generation code, which is based on [LLaMa Inference](https://github.com/facebookresearch/llama), heavily modified to fit the goals of this project
+- `main/util` contains data loading and processing, metric computation (loss calculation), and checkpointing code
+- `main/scripts` contains scripts to run training, evaluation, and inference for various model parameters
+- `notebooks` contains notebooks used to train models on Google Colab, and uses the same code as available in `src`
 
 ## License
 This project utilizes large portions of the [LLaMa Inference](https://github.com/facebookresearch/llama) code. See the [License](LICENSE) file.
