@@ -1,7 +1,9 @@
-import torch
+import argparse
 import gc
 import os
+import torch
 from tqdm import tqdm
+from typing import Optional
 
 from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
@@ -77,27 +79,28 @@ def train(
         print(f"Epoch {epoch + 1}. Train loss: {train_loss}. Val loss: {val_loss}")
 
 
-def main():
-    # Model params
-    dim = 64
-    n_layers = 2
-    n_heads = 2
-
-    # Data params
-    data_path = os.path.join(root_dir, os.path.normpath("data/"))
-    max_seq_len = 32
-    n_train = 4_000_000
-    n_val = 10_000
-    batch_size = 128
-
-    # Training params
-    output_path = os.path.join(root_dir, os.path.normpath("output/"))
-    epochs = 2
-    lr = 3e-4
-    weight_decay = 0.01
+def run_train(
+        data_path: str,
+        output_path: str,
+        dim: int,
+        n_layers: int,
+        n_heads: int,
+        max_seq_len: int,
+        n_train: int,
+        n_val: int,
+        batch_size: int,
+        learning_rate: float,
+        weight_decay: float,
+        epochs: int,
+        ichkpt_path: Optional[str],
+        ichkpt_new_chkpt_format: bool,
+        **args
+):
+    """
+    Run training with given params
+    """
 
     # Checkpoints
-    ichkpt_path = None  # initial checkpoint, if any
     run_name = f"d{dim}-l{n_layers}-h{n_heads}-seq{max_seq_len}"  # Base directory relative to checkpoints for this run
     chkpts_path = os.path.join(output_path, os.path.normpath(f"checkpoints/{run_name}/"))
 
@@ -120,7 +123,8 @@ def main():
         n_heads=n_heads,
         max_seq_len=max_seq_len,
         initial_chkpt=ichkpt_path,
-        new_chkpt_format=True
+        new_chkpt_format=ichkpt_new_chkpt_format,
+        **args
     )
 
     try:
@@ -131,7 +135,7 @@ def main():
             tokenizer=tokenizer,
             train_loader=train_dataloader,
             val_loader=val_dataloader,
-            lr=lr,
+            lr=learning_rate,
             epochs=epochs,
             weight_decay=weight_decay,
             chkpt_dir=chkpts_path,
@@ -146,5 +150,132 @@ def main():
         torch.cuda.empty_cache()
 
 
+def main():
+    """
+    Parse args and run evaluation
+    """
+    arg_parser = argparse.ArgumentParser()
+    # output/checkpoints
+    arg_parser.add_argument(
+        "-op",
+        "--output-path",
+        help="Path to store output",
+        required=True
+    )
+    arg_parser.add_argument(
+        "-cp",
+        "--ichkpt-path",
+        help="Path to initial checkpoint",
+        default=None,
+        type=str
+    )
+    arg_parser.add_argument(
+        "-icpt",
+        "--ichkpt-new-chkpt-format",
+        help="Initial checkpoint: new model checkpoint type (usually true)",
+        type=bool,
+        default=True
+    )
+    # data params
+    arg_parser.add_argument(
+        "-dp",
+        "--data-path",
+        help="Path to data folder (containing train.jsonl, val.jsonl, and tokenizer.model)",
+        required=True
+    )
+    arg_parser.add_argument(
+        "-nt",
+        "--n-train",
+        help="Number of train sequences to use",
+        default=100_000,
+        type=int
+    )
+    arg_parser.add_argument(
+        "-nv",
+        "--n-val",
+        help="Number of validation sequences to use",
+        default=10_000,
+        type=int
+    )
+    arg_parser.add_argument(
+        "-b",
+        "--batch-size",
+        help="Batch size for train/val",
+        default=128,
+        type=int
+    )
+    # training args
+    arg_parser.add_argument(
+        "-lr",
+        "--learning-rate",
+        help="Learning rate",
+        default=3e-4,
+        type=float
+    )
+    arg_parser.add_argument(
+        "-wd",
+        "--weight-decay",
+        help="Weight decay",
+        default=0.01,
+        type=float
+    )
+    arg_parser.add_argument(
+        "-n",
+        "--epochs",
+        help="Number of epochs to train for",
+        type=int,
+        required=True
+    )
+    # model args
+    arg_parser.add_argument(
+        "-sl",
+        "--max-seq-len",
+        help="Maximum sequence length",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-d",
+        "--dim",
+        help="Transformer dimension",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-nl",
+        "--n-layers",
+        help="Number of transformer layers",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-nh",
+        "--n-heads",
+        help="Number of attention heads",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-mo",
+        "--multiple-of",
+        help="SwiGLU hidden layer multiple",
+        default=256,
+        type=int
+    )
+    arg_parser.add_argument(
+        "-ne",
+        "--norm-eps",
+        help="Smoothing value for RMSNorm",
+        default=1e-5,
+        type=float
+    )
+    args, _ = arg_parser.parse_known_args()
+    run_train(**vars(args))
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        gc.collect()
+        torch.cuda.empty_cache()

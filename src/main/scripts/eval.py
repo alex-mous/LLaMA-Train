@@ -1,3 +1,4 @@
+import argparse
 import gc
 import os
 
@@ -12,35 +13,17 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 root_dir: str = os.path.dirname(__file__).removesuffix(os.path.normpath("src/main"))
 
 
-def main():
+def model_eval(
+        chkpt_path: str,
+        data_path: str,
+        **args
+):
     """
     Train a model with the following parameters
     """
-    # Output path that holds checkpoints folder
-    output_path = os.path.join(root_dir, os.path.normpath("output/"))
-
-    # Data path that stores tokenizer.model
-    data_path = os.path.join(root_dir, os.path.normpath("data/"))
-
-    # Model params
-    dim = 256
-    n_layers = 2
-    n_heads = 2
-    max_seq_len = 32
-
-    # Eval params
-    n_val = 10_000
-    batch_size = 128
 
     # Checkpoint to evaluate
-    chkpt_name = "chkpt-1-batch-249-light.pt"
-    chkpt_run = f"d{dim}-l{n_layers}-h{n_heads}-seq{max_seq_len}"
-    is_new_chkpt = True
-    chkpt_name_path = os.path.join(
-        output_path,
-        os.path.normpath(f"checkpoints/{chkpt_run}/{chkpt_name}")
-    )
-    assert os.path.isfile(chkpt_name_path), "Initial checkpoint required to eval"
+    assert os.path.isfile(chkpt_path), "Initial checkpoint required to eval"
 
     # Load model and dataloaders
     model, tokenizer, _, val_dataloader = load_llama_and_data(
@@ -49,28 +32,109 @@ def main():
         train_path="train.jsonl",
         val_path="val.jsonl",
         num_train=10,
-        num_val=n_val,
-        batch_size=batch_size,
-        dim=dim,
-        n_layers=n_layers,
-        n_heads=n_heads,
-        initial_chkpt=chkpt_name_path,
-        new_chkpt_format=is_new_chkpt
+        initial_chkpt=chkpt_path,
+        **args
     )
 
     # Perform evaluation
     model.to(device)
     model.eval()
-    print(f"Evaluadting model stored at {chkpt_name_path}...")
+    print(f"Evaluating model stored at {chkpt_path}...")
     loss_fn = CrossEntropyLoss(ignore_index=tokenizer.eos_id)
     print(f"Validation loss on model: {evaluate(device, model, val_dataloader, loss_fn)}")
     model.cpu()
+
+
+def main():
+    """
+    Parse args and run evaluation
+    """
+    arg_parser = argparse.ArgumentParser()
+    # paths.
+    arg_parser.add_argument(
+        "-cp",
+        "--chkpt-path",
+        help="Path to model checkpoint",
+        required=True
+    )
+    arg_parser.add_argument(
+        "-cpt",
+        "--new-chkpt-format",
+        help="New model checkpoint type (usually true)",
+        type=bool,
+        default=True
+    )
+    arg_parser.add_argument(
+        "-dp",
+        "--data-path",
+        help="Path to data folder (containing train.jsonl, val.jsonl, and tokenizer.model)",
+        required=True
+    )
+    # eval params
+    arg_parser.add_argument(
+        "-n",
+        "--num-val",
+        help="Number of validation sequences to use",
+        default=10_000,
+        type=int
+    )
+    arg_parser.add_argument(
+        "-b",
+        "--batch-size",
+        help="Batch size for validation",
+        default=128,
+        type=int
+    )
+    # model args
+    arg_parser.add_argument(
+        "-sl",
+        "--max-seq-len",
+        help="Maximum sequence length",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-d",
+        "--dim",
+        help="Transformer dimension",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-nl",
+        "--n-layers",
+        help="Number of transformer layers",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-nh",
+        "--n-heads",
+        help="Number of attention heads",
+        type=int,
+        required=True
+    )
+    arg_parser.add_argument(
+        "-mo",
+        "--multiple-of",
+        help="SwiGLU hidden layer multiple",
+        default=256,
+        type=int
+    )
+    arg_parser.add_argument(
+        "-ne",
+        "--norm-eps",
+        help="Smoothing value for RMSNorm",
+        default=1e-5,
+        type=float
+    )
+    args, _ = arg_parser.parse_known_args()
+    model_eval(**vars(args))
 
 
 if __name__ == "__main__":
     try:
         main()
     finally:
-        print("Cleaning up memory...")
         gc.collect()
         torch.cuda.empty_cache()

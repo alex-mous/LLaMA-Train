@@ -56,13 +56,13 @@ def run_main():
     arg_parser.add_argument(
         "-mp",
         "--model-path",
-        help="Path to model artifact",
+        help="Path to model checkpoint",
         required=True
     )
     arg_parser.add_argument(
         "-tp",
         "--tokenizer-path",
-        help="Path to tokenizer artifact",
+        help="Path to tokenizer model",
         required=True
     )
     # generation settings.
@@ -107,13 +107,6 @@ def run_main():
         "--n-heads",
         help="Number of attention heads",
         default=8,
-        type=int
-    )
-    arg_parser.add_argument(
-        "-v",
-        "--vocab-size",
-        help="Number of possible words",
-        default=-1,
         type=int
     )
     arg_parser.add_argument(

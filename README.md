@@ -27,7 +27,7 @@ Next, we will also need a copy of the tokenizer model from Meta to tokenize data
 Finally, setup the local structure by adding the root directory of the project to your Python path. For example, the following command does this on Bash: `export PYTHONPATH="$PWD"`
 
 ## Usage
-For training and evaluation, run `train.py` and `eval.py`, respectively. The parameters for training and evaluation can be configured in the main method of each file. For generation, run `inference.py` and pass the needed parameters as command-line arguments.
+For training, evaluation, and generation, run the corresponding script in the `main/scripts` directory. Each script is configured to parse command line arguments and is set to show a detailed explanation of each parameter when provided with the `--help` argument.
 
 ## Layout
 - `main/llama` contains the model, tokenizer and model generation code, which is based on [LLaMa Inference](https://github.com/facebookresearch/llama), heavily modified to fit the goals of this project
