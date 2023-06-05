@@ -68,3 +68,53 @@ def sample_top_p(probs, p):
     next_token = torch.multinomial(probs_sort, num_samples=1)
     next_token = torch.gather(probs_idx, -1, next_token)
     return next_token
+
+
+def load_model_and_data(
+    storage_base_path: str,
+    tokenizer_path: str,
+    train_path: str,
+    val_path: str,
+    initial_chkpt: Optional[str] = None,
+    num_train: int = 20000,
+    num_val: int = 10000,
+    max_seq_len: int = 512,
+    batch_size: int = 16,
+    new_chkpt_format: bool = False,
+    **model_args
+) -> Tuple[XFormersTransformer, Tokenizer, DataLoader, DataLoader]:
+    """
+    Load a model and train and val dataloaders for training, evaluation, or generation
+    """
+    assert os.path.isfile(storage_base_path + tokenizer_path), "LLaMa tokenizer pretrained model file required"
+    assert os.path.isfile(storage_base_path + train_path), "Train data subset in JSONL format required"
+    assert os.path.isfile(storage_base_path + val_path), "Validation data subset in JSONL format required"
+
+    # Load model
+    torch.cuda.empty_cache()
+    model, tokenizer = load_llama(
+        tokenizer_path=storage_base_path + tokenizer_path,
+        initial_chkpt=initial_chkpt,
+        use_xformers=True,
+        new_chkpt=new_chkpt_format,
+        max_seq_len=max_seq_len,
+        **model_args
+    )
+
+    # Load data
+    train_set, val_set, _ = load_pile_dataset(
+        tokenizer,
+        storage_base_path + train_path,
+        storage_base_path + val_path,
+        num_train=num_train,
+        num_val=num_val,
+        max_seq_len=max_seq_len,
+    )
+
+    train_dataloader, val_dataloader, _ = get_pile_dataloaders(
+        train_set,
+        val_set,
+        batch_size=batch_size
+    )
+
+    return model, tokenizer, train_dataloader, val_dataloader

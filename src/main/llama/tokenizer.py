@@ -8,10 +8,6 @@ from typing import List
 
 class Tokenizer:
     def __init__(self, model_path: str):
-        """
-        Load tokenizer from model
-        :param model_path:
-        """
         # Load tokenizer from tokenizer model
         self.sp_model = SentencePieceProcessor(model_file=model_path)
 

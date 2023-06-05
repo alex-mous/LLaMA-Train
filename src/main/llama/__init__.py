@@ -4,4 +4,4 @@
 from .generation import XFormersLLaMa
 from .model import ModelArgs, XFormersTransformer
 from .tokenizer import Tokenizer
-from .llama import load_llama
+from .llama import load_llama, load_llama_and_data

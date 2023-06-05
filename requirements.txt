@@ -1,8 +1,6 @@
 scikit-learn
 numpy
 torch
-fire
 sentencepiece
 torchvision
-pillow
 tqdm

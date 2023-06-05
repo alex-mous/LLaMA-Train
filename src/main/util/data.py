@@ -1,4 +1,4 @@
-""""
+"""
 Data processing and loading
 """
 
@@ -7,6 +7,7 @@ import json
 import os
 import time
 from tqdm import tqdm
+import math
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -43,14 +44,9 @@ class PileDataset(Dataset):
 def _tokenize_line(line: str, tokenizer: Tokenizer, max_seq_len: int, pad_id: int):
     # Tokenize a string line into at least one sequence of max_seq_len and return tensor of sequences
     line_tokens = torch.tensor(tokenizer.encode(line, bos=True, eos=False)).long()
-    if len(line_tokens) > max_seq_len:  # split into multiple sequences
-        line_tokens = line_tokens[:max_seq_len * (len(line_tokens) // max_seq_len)]  # trim to multiple
-        line_tokens = line_tokens.view(max_seq_len, -1).t()  # reshape into (num_seq, max_seq_len)
-    else:
-        line_tokens = line_tokens.reshape(1, -1)  # reshape into (1, seq len)
-    tokens = torch.full((line_tokens.shape[0], max_seq_len), pad_id).long()
-    for i, t in enumerate(line_tokens):
-        tokens[i, : min(max_seq_len, len(t))] = t
+    tokens = torch.full((math.ceil(len(line_tokens)/max_seq_len)*max_seq_len, ), pad_id, dtype=torch.long)
+    tokens[:len(line_tokens)] = line_tokens
+    tokens = tokens.view(max_seq_len, -1).t()
     return tokens
 
 
@@ -71,34 +67,37 @@ def process_file(
     """
 
     # check if corresponding artifact exists.
-    artifact_path = os.path.join(artifacts_path, f"{os.path.splitext(data_file)[0]}.pt")
+    artifact_path = os.path.join(os.path.normpath(artifacts_path), f"{os.path.splitext(os.path.basename(data_file))[0]}.pt")
     if os.path.isfile(artifact_path):
         print(f"Artifact tokens found. Loading tokenized dataset from {artifact_path}")
-        return torch.load(artifact_path)
+        return torch.load(artifact_path)[:max_seqs]
     # otherwise, parse file.
-    print(f"No artifact found. Loading and tokenizing dataset from {data_file}.")
+    print(f"No artifact found at {artifact_path}. Loading and tokenizing dataset from {data_file}.")
 
     # create artifacts dir if they don't exist
     if not os.path.isdir(artifacts_path):
         os.makedirs(artifacts_path)
 
-    seqs = torch.zeros((1, max_seq_len), dtype=torch.long)  # sequences to parse
     pad_id = tokenizer.eos_id  # padding id
+    seqs = torch.empty((max_seqs, max_seq_len), dtype=torch.long)  # sequences to parse
 
     # process data file into tokenized sequences padded to exactly max_seq_len
+    curr = 0  # current sequence
     with open(data_file, "r", encoding="utf-8") as file:
         with tqdm(total=max_seqs, desc="Dataset loading: ") as p_bar:
             for jsonline in file:
-                if seqs.shape[0] >= max_seqs:
+                if curr >= max_seqs:
                     break
                 raw = json.loads(jsonline)
                 tokens = _tokenize_line(raw["text"], tokenizer, max_seq_len, pad_id)
-                seqs = torch.vstack((seqs, tokens))
-                p_bar.update(tokens.shape[0])
+                num_toks = min(tokens.shape[0], max_seqs-curr)
+                seqs[curr:curr+num_toks, :] = tokens[:num_toks, :]
+                curr += num_toks
+                p_bar.update(num_toks)
 
     # save artifact and return
-    torch.save(seqs[1:], artifact_path)
-    return seqs[1:]
+    torch.save(seqs, artifact_path)
+    return seqs
 
 
 def load_pile_dataset(
@@ -115,17 +114,6 @@ def load_pile_dataset(
     """
     Load Pile dataset into train, val, and test datasets of tokens
     with numbers of sequences and sequence lengths as specified
-    :param max_seq_len:
-    :param data_path:
-    :param test_file:
-    :param val_file:
-    :param train_file:
-    :param tokenizer:
-    :param num_train:
-    :param num_val:
-    :param num_test:
-    :param max_seq_len:
-    :return: train, val, (optionally) test PileDatasets
     """
     print("Loading Pile dataset...")
     start_time = time.time()

@@ -7,30 +7,9 @@ import time
 import torch
 import torch.distributed
 
-from src.main.llama import ModelArgs, Tokenizer, XFormersLLaMa, XFormersTransformer
+from src.main.llama import ModelArgs, Tokenizer, XFormersLLaMa, XFormersTransformer, load_llama
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
-def load(
-        tokenizer_path: str,
-        checkpoint_path: str,
-        **model_args
-) -> XFormersLLaMa:
-    start_time = time.time()
-    print("Loading LLaMa model and tokenizer.")
-    # load tokenizer.
-    tokenizer = Tokenizer(model_path=tokenizer_path)
-    # load model.
-    model_params = ModelArgs(**model_args)
-    model_params.vocab_size = tokenizer.n_words
-    model = XFormersTransformer(model_params)
-    model.load_state_dict(torch.load(checkpoint_path))
-    # build XFormersLLaMa model.
-    torch.set_default_tensor_type(torch.FloatTensor)
-    print(f"Loaded model and tokenizer in {time.time() - start_time:.2f} seconds")
-    inference_model = XFormersLLaMa(model, tokenizer, device)
-    return inference_model
 
 
 def main(
@@ -40,7 +19,7 @@ def main(
         top_p: float = 0.95,
         max_gen_len: int = 512
 ):
-    generator = load(
+    generator = load_llama(
         tokenizer_path,
         model_path,
         dim=512,
